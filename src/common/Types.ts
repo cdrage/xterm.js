@@ -3,7 +3,7 @@
  * @license MIT
  */
 
-import { IFunctionIdentifier, ITerminalOptions as IPublicTerminalOptions } from '@xterm/xterm';
+import { IFunctionIdentifier, ITerminalInitOnlyOptions, ITerminalOptions as IPublicTerminalOptions } from '@xterm/xterm';
 import type { IEvent } from './Event';
 
 /** sequence params serialized to js arrays */
@@ -36,7 +36,7 @@ export interface IDisposable {
 }
 
 // TODO: The options that are not in the public API should be reviewed
-export interface ITerminalOptions extends IPublicTerminalOptions {
+export interface ITerminalOptions extends IPublicTerminalOptions, ITerminalInitOnlyOptions {
   [key: string]: any;
   convertEol?: boolean;
   termName?: string;

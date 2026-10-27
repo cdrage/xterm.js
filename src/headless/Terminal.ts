@@ -99,6 +99,10 @@ export class Terminal extends CoreTerminal {
    * Clear the entire buffer, making the prompt line the new first line.
    */
   public clear(): void {
+    if (this._bufferService.clear) {
+      this._bufferService.clear();
+      return;
+    }
     this.buffer.clearAllMarkers();
     this.buffer.lines.set(0, this.buffer.lines.get(this.buffer.ybase + this.buffer.y)!);
     this.buffer.lines.length = 1;

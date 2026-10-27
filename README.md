@@ -73,6 +73,91 @@ Here is a complete standalone example in a HTML file:
   </html>
 ```
 
+### Experimental Ghostty engine
+
+The browser and headless terminals accept `vtEngine: 'ghostty'` with
+`allowProposedApi: true`. The default remains `vtEngine: 'xterm'`.
+Ghostty owns terminal state, scrollback, reflow, and Unicode graphemes.
+xterm.js supplies input, renderers, and public APIs.
+
+Run the artifact setup from this repository:
+
+```sh
+npm run setup-ghostty
+```
+
+The script downloads the official WebAssembly artifact for Ghostty 1.4.0
+to `demo/dist/ghostty-vt.wasm`. It checks a pinned SHA-256 digest.
+The source commit is `83fb95624b0439ee660c2679b43b38c8b63769cd`.
+The script does not use the mutable `tip` release URL.
+
+Serve the artifact from your application. Compile it before terminal construction:
+
+```js
+const response = await fetch('/ghostty-vt.wasm');
+if (!response.ok) {
+  throw new Error(`Ghostty download failed: HTTP ${response.status}`);
+}
+const ghosttyModule = await WebAssembly.compile(await response.arrayBuffer());
+const term = new Terminal({
+  allowProposedApi: true,
+  vtEngine: 'ghostty',
+  ghosttyModule
+});
+term.open(document.getElementById('terminal'));
+```
+
+For Node.js, use `WebAssembly.compile(await readFile(path))` from
+`node:fs/promises`. Each terminal owns an independent instance of the shared module.
+The core package does not download WebAssembly at runtime.
+
+Git installs run `prepare` to build the package and fetch the pinned artifact.
+The package includes `lib/ghostty-vt.wasm` and `lib/ghostty-vt.LICENSE`.
+Pin a commit when an application consumes this fork:
+
+```sh
+pnpm --filter renderer add -D '@xterm/xterm@github:cdrage/xterm.js#<commit>'
+```
+
+Vite applications can import the bundled asset with
+`import ghosttyUrl from '@xterm/xterm/lib/ghostty-vt.wasm?url'`.
+Use that URL in the `fetch` call above. Compile the module once per renderer.
+If the application uses CSP, add `'wasm-unsafe-eval'` to `script-src`.
+The published fit, search, and serialize addons retain their existing imports.
+
+For a local package, run `npm pack --pack-destination /tmp`.
+This runs the same build without a push or registry publication.
+
+Both engine options apply only at construction. A new terminal starts a new
+session. The demo provides a **Terminal engine** selector in **Options** after
+`npm run setup-ghostty`. The URL `/?vtEngine=ghostty` selects Ghostty directly.
+
+This integration remains experimental:
+
+- A JavaScript dispatcher preserves parser hooks, including asynchronous handlers.
+  Unhandled commands reach Ghostty. This adds overhead and does not establish a
+  performance improvement.
+- The buffer view copies changed rows from Ghostty for existing renderers and
+  addons. Large scrollback increases memory use and synchronization work.
+- The maximum dimension and exposed scrollback limit are each 65,535.
+  Ghostty can retain additional history internally because it prunes whole pages.
+- The image addon and custom Unicode providers are unavailable. Ghostty image
+  placements do not appear in xterm.js renderers.
+- xterm-specific reflow options and Windows compatibility heuristics do not
+  configure Ghostty. Terminal behavior can differ from the default engine.
+
+The artifact uses the [Ghostty license](https://github.com/ghostty-org/ghostty/blob/v1.4.0/LICENSE).
+Preserve the upstream license notices when you distribute it.
+
+Run the engine tests with `npm run test-ghostty`. Run browser tests after the
+standard demo builds:
+
+```sh
+npm run esbuild-demo-client
+npm run esbuild-demo-server
+npm run test-integration -- test/playwright/Ghostty.test.ts --suite=core
+```
+
 ### Addons
 
 Addons are separate modules that extend the `Terminal` by building on the [xterm.js API](https://github.com/xtermjs/xterm.js/blob/master/typings/xterm.d.ts). To use an addon, you first need to install it in your project:

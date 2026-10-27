@@ -172,6 +172,8 @@ jobs:
           unzip -o compressed-build.zip
         fi
         ls -R
+    - name: Fetch pinned Ghostty test artifact
+      run: npm run setup-ghostty
     - name: Unit tests
       run: npm run test-unit --forbid-only
 
@@ -214,6 +216,8 @@ jobs:
       run: npm run esbuild-demo-client
     - name: Build demo server
       run: npm run esbuild-demo-server
+    - name: Fetch pinned Ghostty test artifact
+      run: npm run setup-ghostty
     - name: Integration tests (core) # Tests use 50% workers to reduce flakiness
       run: npm run test-integration-${{ matrix.browser }} -- --workers=50% --forbid-only --suite=core
     - name: Integration tests (addon-attach)

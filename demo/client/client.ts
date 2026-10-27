@@ -73,6 +73,7 @@ let addonsWindow: AddonsWindow;
 let addonSearchWindow: AddonSearchWindow;
 let addonWebglWindow: WebglWindow;
 let optionsWindow: OptionsWindow;
+let ghosttyModule: WebAssembly.Module | undefined;
 
 const addons: AddonCollection = {
   attach: { name: 'attach', ctor: AttachAddon, canChange: false },
@@ -212,6 +213,19 @@ if (document.location.pathname === '/test') {
   window.WebLinksAddon = WebLinksAddon;
   window.WebglAddon = WebglAddon;
 } else {
+  startDemo().catch(error => {
+    terminalContainer!.textContent = error instanceof Error ? error.message : String(error);
+  });
+}
+
+async function startDemo(): Promise<void> {
+  if (new URLSearchParams(location.search).get('vtEngine') === 'ghostty') {
+    const response = await fetch('/dist/ghostty-vt.wasm');
+    if (!response.ok) {
+      throw new Error('Run npm run setup-ghostty, then reload the demo');
+    }
+    ghosttyModule = await WebAssembly.compile(await response.arrayBuffer());
+  }
   const typedTerm = createTerminal();
 
   controlBar = new ControlBar(document.getElementById('sidebar')!, document.querySelector('.banner-tabs')!, []);
@@ -290,6 +304,8 @@ function createTerminal(): Terminal {
   term = new Terminal({
     scrollbar: { showScrollbar: true },
     allowProposedApi: true,
+    vtEngine: ghosttyModule ? 'ghostty' : 'xterm',
+    ghosttyModule,
     windowsPty: isWindows ? {
       // In a real scenario, these values should be verified on the backend
       backend: 'conpty',
@@ -304,9 +320,12 @@ function createTerminal(): Terminal {
   addons.search.instance = new SearchAddon();
   addons.serialize.instance = new SerializeAddon();
   addons.fit.instance = new FitAddon();
-  addons.image.instance = new ImageAddon!();
+  addons.image.instance = ghosttyModule ? undefined : new ImageAddon!();
+  addons.image.canChange = !ghosttyModule;
   addons.progress.instance = new ProgressAddon();
-  addons.unicodeGraphemes.instance = new UnicodeGraphemesAddon();
+  addons.unicodeGraphemes.instance = ghosttyModule ? undefined : new UnicodeGraphemesAddon();
+  addons.unicodeGraphemes.canChange = !ghosttyModule;
+  addons.unicode11.canChange = !ghosttyModule;
   addons.clipboard.instance = new ClipboardAddon();
   try {  // try to start with webgl renderer (might throw on older safari/webkit)
     addons.webgl.instance = new WebglAddon();
@@ -316,11 +335,15 @@ function createTerminal(): Terminal {
   addons.webLinks.instance = new WebLinksAddon();
   addons.webFonts.instance = new WebFontsAddon();
   typedTerm.loadAddon(addons.fit.instance);
-  typedTerm.loadAddon(addons.image.instance);
+  if (addons.image.instance) {
+    typedTerm.loadAddon(addons.image.instance);
+  }
   typedTerm.loadAddon(addons.progress.instance);
   typedTerm.loadAddon(addons.search.instance);
   typedTerm.loadAddon(addons.serialize.instance);
-  typedTerm.loadAddon(addons.unicodeGraphemes.instance);
+  if (addons.unicodeGraphemes.instance) {
+    typedTerm.loadAddon(addons.unicodeGraphemes.instance);
+  }
   typedTerm.loadAddon(addons.webLinks.instance);
   typedTerm.loadAddon(addons.webFonts.instance);
   typedTerm.loadAddon(addons.clipboard.instance);

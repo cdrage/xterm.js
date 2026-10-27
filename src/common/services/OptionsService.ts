@@ -8,10 +8,13 @@ import { isMac } from '../Platform';
 import { CursorStyle, IDisposable } from '../Types';
 import { FontWeight, IOptionsService, ITerminalOptions } from './Services';
 import { Emitter } from '../Event';
+import { GhosttyLimits } from '../ghostty/Types';
 
 export const DEFAULT_OPTIONS: Readonly<Required<ITerminalOptions>> = {
   cols: 80,
   rows: 24,
+  vtEngine: 'xterm',
+  ghosttyModule: null,
   showCursorImmediately: false,
   cursorBlink: false,
   blinkIntervalDuration: 0,
@@ -189,6 +192,9 @@ export class OptionsService extends Disposable implements IOptionsService {
         value = Math.max(1, Math.min(21, Math.round(value * 10) / 10));
         break;
       case 'scrollback':
+        if (this.rawOptions?.vtEngine === 'ghostty' && (!Number.isInteger(value) || value > GhosttyLimits.MAX_SCROLLBACK)) {
+          throw new Error(`Ghostty scrollback must be an integer from 0 to ${GhosttyLimits.MAX_SCROLLBACK}`);
+        }
         value = Math.min(value, 4294967295);
         if (value < 0) {
           throw new Error(`${key} cannot be less than 0, value: ${value}`);

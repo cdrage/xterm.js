@@ -30,9 +30,12 @@
     "xterm"
   ],
   "scripts": {
+    "prepare": "npm run package && npm run setup-ghostty",
     "presetup": "npm run build",
     "setup": "npm run esbuild",
     "setup-full": "node bin/setup-full.mjs",
+    "setup-ghostty": "node bin/fetch-ghostty.mjs",
+    "test-ghostty": "npm run setup-ghostty && npm run build && npm run esbuild && npm run test-unit -- out-esbuild/headless/public/Ghostty.test.js",
     "postsetup": "npm run esbuild-demo-server",
     "start": "node demo/start",
     "dev": "concurrently -k -p [{name}] -n tsc,esbuild,esbuild-demo-client,esbuild-demo-server,server -c blue,yellow,cyan,green,magenta \"npm:tsc-watch\" \"npm:esbuild-watch\" \"npm:esbuild-demo-client-watch\" \"npm:esbuild-demo-server-watch\" \"npm:start\"",

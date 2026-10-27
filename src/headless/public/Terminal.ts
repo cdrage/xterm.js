@@ -15,7 +15,7 @@ import type { IEvent } from '../../common/Event';
 /**
  * The set of options that only have an effect when set in the Terminal constructor.
  */
-const CONSTRUCTOR_ONLY_OPTIONS = ['cols', 'rows'];
+const CONSTRUCTOR_ONLY_OPTIONS = ['cols', 'rows', 'vtEngine', 'ghosttyModule'];
 
 export class Terminal extends Disposable implements ITerminalApi {
   private _core: TerminalCore;
@@ -80,6 +80,9 @@ export class Terminal extends Disposable implements ITerminalApi {
   }
   public get unicode(): IUnicodeHandling {
     this._checkProposedApi();
+    if (this._core.options.vtEngine === 'ghostty') {
+      throw new Error('The Ghostty engine owns Unicode handling and does not support Unicode providers');
+    }
     return new UnicodeApi(this._core);
   }
   public get rows(): number { return this._core.rows; }

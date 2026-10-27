@@ -470,7 +470,7 @@ class StringSerializeHandler extends BaseSerializeHandler {
     // Restore the cursor's current style, see https://github.com/xtermjs/xterm.js/issues/3677
     // HACK: Internal API access since it's awkward to expose this in the API and serialize will
     // likely be the only consumer
-    const curAttrData: IAttributeData = (this._terminal as any)._core._inputHandler._curAttrData;
+    const curAttrData: IAttributeData = (this._terminal as any)._core._inputHandler.getAttrData();
     const sgrSeq = this._diffStyle(curAttrData, this._cursorStyle);
     if (sgrSeq.length > 0) {
       content += `\u001b[${sgrSeq.join(';')}m`;

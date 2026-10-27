@@ -40,6 +40,10 @@ import { WriteBuffer } from './input/WriteBuffer';
 import { OscLinkService } from './services/OscLinkService';
 import { Emitter, EventUtils, type IEvent } from './Event';
 import { Disposable, MutableDisposable, toDisposable } from './Lifecycle';
+import { GhosttyWasm } from './ghostty/GhosttyWasm';
+import { GhosttyBufferService } from './ghostty/GhosttyBufferService';
+import { GhosttyInputHandler } from './ghostty/GhosttyInputHandler';
+import { GhosttyLimits } from './ghostty/Types';
 
 // Only trigger this warning a single time per session
 let hasWriteSyncWarnHappened = false;
@@ -70,7 +74,7 @@ export abstract class CoreTerminal extends Disposable implements ICoreTerminal {
   public readonly unicodeService: IUnicodeService;
   public readonly optionsService: IOptionsService;
 
-  protected _inputHandler: InputHandler;
+  protected _inputHandler: InputHandler | GhosttyInputHandler;
   private _writeBuffer: WriteBuffer;
   private _windowsWrappingHeuristics = this._register(new MutableDisposable());
 
@@ -118,13 +122,31 @@ export abstract class CoreTerminal extends Disposable implements ICoreTerminal {
   ) {
     super();
 
+    if (options.vtEngine !== undefined && options.vtEngine !== 'xterm' && options.vtEngine !== 'ghostty') {
+      throw new Error('vtEngine must be xterm or ghostty');
+    }
+    if (options.vtEngine === 'ghostty' && (!options.allowProposedApi || !options.ghosttyModule)) {
+      throw new Error('The Ghostty engine requires allowProposedApi and ghosttyModule');
+    }
+
     // Setup and initialize services
     this._instantiationService = new InstantiationService();
     this.optionsService = this._register(new OptionsService(options));
     this._instantiationService.setService(IOptionsService, this.optionsService);
     this._logService = this._register(this._instantiationService.createInstance(LogService));
     this._instantiationService.setService(ILogService, this._logService);
-    this._bufferService = this._register(this._instantiationService.createInstance(BufferService));
+    let ghostty: GhosttyWasm | undefined;
+    if (options.vtEngine === 'ghostty') {
+      const cols = Math.max(this.options.cols, BufferServiceConstants.MINIMUM_COLS);
+      const rows = Math.max(this.options.rows, BufferServiceConstants.MINIMUM_ROWS);
+      if (!Number.isInteger(cols) || !Number.isInteger(rows) || cols > GhosttyLimits.MAX_DIMENSION || rows > GhosttyLimits.MAX_DIMENSION) {
+        throw new Error(`Ghostty dimensions must be integers from 1 to ${GhosttyLimits.MAX_DIMENSION}`);
+      }
+      ghostty = this._register(new GhosttyWasm(options.ghosttyModule!, cols, rows, this.options.scrollback));
+      this._bufferService = this._register(new GhosttyBufferService(cols, rows, ghostty, this.optionsService, this._logService));
+    } else {
+      this._bufferService = this._register(this._instantiationService.createInstance(BufferService));
+    }
     this._instantiationService.setService(IBufferService, this._bufferService);
     this.coreService = this._register(this._instantiationService.createInstance(CoreService));
     this._instantiationService.setService(ICoreService, this.coreService);
@@ -137,10 +159,16 @@ export abstract class CoreTerminal extends Disposable implements ICoreTerminal {
     this._instantiationService.setService(ICharsetService, this._charsetService);
     this._oscLinkService = this._instantiationService.createInstance(OscLinkService);
     this._instantiationService.setService(IOscLinkService, this._oscLinkService);
+    if (this._bufferService instanceof GhosttyBufferService) {
+      this._bufferService.setLinkService(this._oscLinkService);
+    }
 
 
     // Register input handler and handle/forward events
-    this._inputHandler = this._register(new InputHandler(this._bufferService, this._charsetService, this.coreService, this._logService, this.optionsService, this._oscLinkService, this.mouseStateService, this.unicodeService));
+    const inputHandler = new InputHandler(this._bufferService, this._charsetService, this.coreService, this._logService, this.optionsService, this._oscLinkService, this.mouseStateService, this.unicodeService);
+    this._inputHandler = this._register(ghostty
+      ? new GhosttyInputHandler(inputHandler, ghostty, this._bufferService as GhosttyBufferService, this.coreService, this.optionsService, this.mouseStateService)
+      : inputHandler);
     this._register(EventUtils.forward(this._inputHandler.onLineFeed, this._onLineFeed));
 
     // Setup listeners
@@ -277,6 +305,10 @@ export abstract class CoreTerminal extends Disposable implements ICoreTerminal {
 
 
   private _handleWindowsPtyOptionChange(): void {
+    if (this.options.vtEngine === 'ghostty') {
+      this._windowsWrappingHeuristics.clear();
+      return;
+    }
     let value = false;
     const windowsPty = this.optionsService.rawOptions.windowsPty;
     if (windowsPty && windowsPty.backend !== undefined && windowsPty.buildNumber !== undefined) {

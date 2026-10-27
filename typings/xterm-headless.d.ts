@@ -262,6 +262,20 @@ declare module '@xterm/headless' {
    */
   export interface ITerminalInitOnlyOptions {
     /**
+     * Experimental terminal engine. Defaults to 'xterm'.
+     * 'ghostty' requires allowProposedApi and ghosttyModule.
+     * Create a new terminal to change engines. Session state does not transfer.
+     */
+    vtEngine?: 'xterm' | 'ghostty';
+
+    /**
+     * A compiled libghostty-vt WebAssembly module from Ghostty 1.4.0.
+     * Required when vtEngine is 'ghostty'. Each terminal owns its instance.
+     * Load and compile the module before terminal construction.
+     */
+    ghosttyModule?: WebAssembly.Module | null;
+
+    /**
      * The number of columns in the terminal.
      */
     cols?: number;

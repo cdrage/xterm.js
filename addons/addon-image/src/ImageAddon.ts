@@ -3,7 +3,7 @@
  * @license MIT
  */
 
-import type { ITerminalAddon, IDisposable } from '@xterm/xterm';
+import type { ITerminalAddon, IDisposable, ITerminalInitOnlyOptions } from '@xterm/xterm';
 import type { ImageAddon as IImageApi } from '@xterm/addon-image';
 import { Emitter, type IEvent } from 'common/Event';
 import { IIPHandler } from './IIPHandler';
@@ -128,6 +128,9 @@ export class ImageAddon implements ITerminalAddon, IImageApi {
   }
 
   public activate(terminal: ITerminalExt): void {
+    if ((terminal.options as ITerminalInitOnlyOptions).vtEngine === 'ghostty') {
+      throw new Error('The image addon does not support the experimental Ghostty engine');
+    }
     this._terminal = terminal;
 
     // internal data structures

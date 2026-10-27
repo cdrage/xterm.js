@@ -112,6 +112,7 @@ export class OptionsWindow extends BaseWindow implements IControlWindow {
       'convertEol',
       'termName',
       'cols', 'rows',
+      'vtEngine', 'ghosttyModule',
       'documentOverride',
       'linkHandler',
       'logger',
@@ -160,7 +161,8 @@ export class OptionsWindow extends BaseWindow implements IControlWindow {
       }
     });
 
-    let html = '';
+    const ghostty = new URLSearchParams(location.search).get('vtEngine') === 'ghostty';
+    let html = `<div class="option"><label>Terminal engine <select id="opt-vtEngine"><option value="xterm">xterm.js</option><option value="ghostty" ${ghostty ? 'selected' : ''}>Ghostty (experimental)</option></select></label><p>A change starts a new session.</p></div>`;
     html += '<div class="option-group">';
     booleanOptions.forEach(o => {
       html += `<div class="option"><label><input id="opt-${o}" type="checkbox" ${(this._terminal.options as Record<string, unknown>)[o] ? 'checked' : ''}/> ${o}</label></div>`;
@@ -189,6 +191,13 @@ export class OptionsWindow extends BaseWindow implements IControlWindow {
     html += '</div>';
 
     this._optionsContainer.innerHTML = html;
+
+    const engineSelect = document.getElementById('opt-vtEngine') as HTMLSelectElement;
+    addDomListener(engineSelect, 'change', () => {
+      const url = new URL(location.href);
+      url.searchParams.set('vtEngine', engineSelect.value);
+      location.href = url.href;
+    });
 
     // Attach listeners
     booleanOptions.forEach(o => {

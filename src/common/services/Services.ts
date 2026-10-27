@@ -24,6 +24,8 @@ export interface IBufferService {
   scrollLines(disp: number, suppressScrollEvent?: boolean): void;
   resize(cols: number, rows: number): void;
   reset(): void;
+  /** Clear an external engine and its buffer view together. */
+  clear?(): void;
 }
 
 export interface IBufferResizeEvent {
@@ -201,6 +203,8 @@ export type FontWeight = 'normal' | 'bold' | '100' | '200' | '300' | '400' | '50
 export type LogLevel = 'trace' | 'debug' | 'info' | 'warn' | 'error' | 'off';
 
 export interface ITerminalOptions {
+  vtEngine?: 'xterm' | 'ghostty';
+  ghosttyModule?: WebAssembly.Module | null;
   allowProposedApi?: boolean;
   allowTransparency?: boolean;
   altClickMovesCursor?: boolean;

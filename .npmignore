@@ -21,6 +21,8 @@
 !lib/**/*.mjs.map
 
 !lib/**/*.css
+!lib/ghostty-vt.wasm
+!lib/ghostty-vt.LICENSE
 
 # Whitelist - src/
 !src/**/*.ts
